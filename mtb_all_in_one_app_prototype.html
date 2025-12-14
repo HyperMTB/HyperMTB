@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HyperMTB</title>
+
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    header {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      padding: 1.1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    #map {
+      height: 320px;
+      width: 100%;
+    }
+    main {
+      max-width: 1000px;
+      margin: auto;
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    .card {
+      background: #020617;
+      border-radius: 14px;
+      padding: 1.2rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+    h2 { margin-top: 0; }
+    label { font-weight: 600; }
+    select, button {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: none;
+      margin-top: 0.4rem;
+      font-size: 0.95rem;
+    }
+    button {
+      background: #22c55e;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .pill {
+      display: inline-block;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      margin: 0.25rem 0.25rem 0 0;
+      background: #1e293b;
+    }
+    .danger { background: #7f1d1d; }
+    .warn { background: #78350f; }
+    .ok { background: #14532d; }
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      opacity: 0.6;
+      padding-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>🚵 HyperMTB</header>
+
+  <!-- Interactive Map -->
+  <div id="map"></div>
+
+  <main>
+    <div class="card">
+      <h2>Rider Profile</h2>
+      <label>Skill level</label>
+      <select id="profileSkill">
+        <option value="1">Beginner</option>
+        <option value="2">Intermediate</option>
+        <option value="3">Advanced</option>
+      </select>
+
+      <label>Fitness level</label>
+      <select id="profileFitness">
+        <option value="1">Low</option>
+        <option value="2">Medium</option>
+        <option value="3">High</option>
+      </select>
+
+      <label>Comfort with drops</label>
+      <select id="profileDrops">
+        <option value="0">None</option>
+        <option value="1">Small</option>
+        <option value="2">Medium</option>
+        <option value="3">Large</option>
+      </select>
+
+      <button onclick="saveProfile()">Save Profile</button>
+    </div>
+
+    <div id="trailInfo" class="card" style="display:none"></div>
+  </main>
+
+  <footer>HyperMTB MVP – Know the trail before it knows you</footer>
+
+  <script>
+    let riderProfile = null;
+
+    function saveProfile() {
+      riderProfile = {
+        skill: parseInt(profileSkill.value),
+        fitness: parseInt(profileFitness.value),
+        drops: parseInt(profileDrops.value)
+      };
+      alert('Rider profile saved');
+    }
+
+    /* Map setup (GAP area approx) */
+    const map = L.map('map').setView([53.275, -6.345], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    /* Trail data */
+    const trails = {
+      bluebell: {
+        name: 'Bluebell',
+        color: '#3b82f6',
+        coords: [[53.276,-6.35],[53.277,-6.348],[53.278,-6.346]],
+        skills: ['Cornering basics','Brake control'],
+        fitness: 'Low – flow trail',
+        risk: ['Slippery roots after rain'],
+        weather: 'Rides well damp, avoid heavy rain',
+        avoid: 'Brand new riders when wet'
+      },
+      molly: {
+        name: "Molly's",
+        color: '#ef4444',
+        coords: [[53.274,-6.344],[53.275,-6.342],[53.276,-6.34]],
+        skills: ['Rock rolls','Steep braking'],
+        fitness: 'Medium–High',
+        risk: ['Rock garden mid-trail'],
+        weather: 'Very slippery when wet',
+        avoid: 'Inexperienced riders'
+      },
+      hellfire: {
+        name: 'Hellfire',
+        color: '#000000',
+        coords: [[53.273,-6.347],[53.272,-6.345],[53.271,-6.343]],
+        skills: ['Big drops','Exposure control'],
+        fitness: 'Very High',
+        risk: ['Severe injury potential zones'],
+        weather: 'Dry only',
+        avoid: 'Anyone unsure of ability'
+      }
+    };
+
+    /* Draw trails */
+    Object.values(trails).forEach(t => {
+      const line = L.polyline(t.coords, { color: t.color, weight: 5 }).addTo(map);
+      line.on('click', () => showTrail(t));
+    });
+
+    function showTrail(t) {
+      let warnings = [];
+
+      if (riderProfile) {
+        if (riderProfile.skill < (t.name === 'Hellfire' ? 3 : 2)) warnings.push('Skill level may be too low');
+        if (riderProfile.fitness < (t.fitness.includes('High') ? 3 : 2)) warnings.push('Fitness may be insufficient');
+        if (riderProfile.drops < (t.name === 'Hellfire' ? 3 : 2)) warnings.push('Drop size exceeds comfort');
+      }
+
+      trailInfo.style.display = 'block';
+      trailInfo.innerHTML = `
+        <h2>${t.name}</h2>
+
+        ${warnings.length ? `<strong>⚠️ Profile Warnings</strong><br>${warnings.map(w=>`<span class='pill danger'>${w}</span>`).join('')}<br><br>` : ''}
+
+        <strong>Required Skills</strong><br>
+        ${t.skills.map(s=>`<span class='pill ok'>${s}</span>`).join('')}
+
+        <br><br><strong>Fitness Needed</strong><br>
+        <span class='pill warn'>${t.fitness}</span>
+
+        <br><br><strong>Crash Risk Zones</strong><br>
+        ${t.risk.map(r=>`<span class='pill danger'>${r}</span>`).join('')}
+
+        <br><br><strong>Weather Sensitivity</strong><br>
+        <span class='pill warn'>${t.weather}</span>
+
+        <br><br><strong>Who Should NOT Ride</strong><br>
+        <span class='pill danger'>${t.avoid}</span>
+      `;
+    }
+  </script>
+</body>
+</html>
